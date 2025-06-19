@@ -249,7 +249,7 @@ impl<D: ?Sized, W: ?Sized> BufferInterface for BufferImpl<'_, D, W> {
     #[inline]
     fn present_with_damage(self, _damage: &[crate::Rect]) -> Result<(), SoftBufferError> {
         self.display
-            .page_flip(self.crtc, self.fb, PageFlipFlags::empty(), None)
+            .page_flip(self.crtc, self.fb, PageFlipFlags::EVENT, None)
             .unwrap();
 
         Ok(())

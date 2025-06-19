@@ -2,7 +2,7 @@
 
 #[cfg(kms_platform)]
 mod imple {
-    use drm::control::{connector, Device as CtrlDevice, ModeTypeFlags, PlaneType};
+    use drm::control::{connector, Device as CtrlDevice, Event, ModeTypeFlags, PlaneType};
     use drm::Device;
 
     use raw_window_handle::{DisplayHandle, DrmDisplayHandle, DrmWindowHandle, WindowHandle};
@@ -123,6 +123,32 @@ mod imple {
             let mut buffer = surface.buffer_mut()?;
             draw_to_buffer(&mut buffer, tick);
             buffer.present()?;
+
+            // Wait for the page flip to happen.
+            rustix::event::poll(
+                &mut [rustix::event::PollFd::new(
+                    &device,
+                    rustix::event::PollFlags::IN,
+                )],
+                None,
+            )?;
+
+            // Receive the events.
+            let events = device.receive_events()?;
+            println!("Got some events...");
+            for event in events {
+                match event {
+                    Event::PageFlip(_) => {
+                        println!("Page flip event.");
+                    }
+                    Event::Vblank(_) => {
+                        println!("Vblank event.");
+                    }
+                    _ => {
+                        println!("Unknown event.");
+                    }
+                }
+            }
         }
     }
 
