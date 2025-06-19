@@ -127,15 +127,20 @@ mod imple {
     }
 
     fn draw_to_buffer(buf: &mut [u32], tick: usize) {
-        let scale = colorous::SINEBOW;
-        let mut i = (tick as f64) / 20.0;
-        while i > 1.0 {
-            i -= 1.0;
-        }
+        let screen_width = 800;
+        let col_width = 50;
+        let start = tick % col_width;
 
-        let color = scale.eval_continuous(i);
-        let pixel = ((color.r as u32) << 16) | ((color.g as u32) << 8) | (color.b as u32);
-        buf.fill(pixel);
+        let yellow = 0xffff99ff;
+        let blue = 0x386cb0ff;
+
+        for row in buf.chunks_mut(screen_width) {
+            row[0..start].fill(yellow);
+            for col_idx in 1..=(screen_width / col_width) {
+                let color = if col_idx % 2 == 0 { yellow } else { blue };
+                row[col_idx * start..(col_idx + 1) * start].fill(color);
+            }
+        }
     }
 
     struct Card(std::fs::File);
