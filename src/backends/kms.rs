@@ -155,6 +155,7 @@ impl<D: HasDisplayHandle + ?Sized, W: HasWindowHandle> SurfaceInterface<D, W> fo
         } else {
             &mut buffers.buffers[1]
         };
+        buffers.first_is_front = !buffers.first_is_front;
 
         let mapping = self
             .display

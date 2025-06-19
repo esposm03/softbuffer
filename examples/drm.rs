@@ -109,22 +109,20 @@ mod imple {
         )?;
 
         // Start drawing to it.
-        let mut last_frame = Instant::now();
         let mut tick = 0;
         loop {
             tick += 1;
-            println!(
-                "Drawing tick {tick}, {:?} elapsed since last frame",
-                last_frame.elapsed()
-            );
-            last_frame = Instant::now();
+            let frame_start = Instant::now();
 
             // Start drawing.
+            let draw_start = Instant::now();
             let mut buffer = surface.buffer_mut()?;
             draw_to_buffer(&mut buffer, tick);
             buffer.present()?;
+            let draw_end = draw_start.elapsed();
 
             // Wait for the page flip to happen.
+            let poll_start = Instant::now();
             rustix::event::poll(
                 &mut [rustix::event::PollFd::new(
                     &device,
@@ -132,15 +130,13 @@ mod imple {
                 )],
                 None,
             )?;
+            let poll_end = poll_start.elapsed();
 
             // Receive the events.
             let events = device.receive_events()?;
-            println!("Got some events...");
             for event in events {
                 match event {
-                    Event::PageFlip(_) => {
-                        println!("Page flip event.");
-                    }
+                    Event::PageFlip(_) => {}
                     Event::Vblank(_) => {
                         println!("Vblank event.");
                     }
@@ -149,23 +145,34 @@ mod imple {
                     }
                 }
             }
+
+            println!(
+                "Frame {tick}, {draw_end:?} drawing, {poll_end:?} waiting, done in {:?}",
+                frame_start.elapsed()
+            );
         }
     }
 
     fn draw_to_buffer(buf: &mut [u32], tick: usize) {
         let screen_width = 800;
-        let col_width = 50;
-        let start = tick % col_width;
+        let screen_height = 480;
+        let yellow = 0xffffff99;
+        let blue = 0xff386cb0;
 
-        let yellow = 0xffff99ff;
-        let blue = 0x386cb0ff;
+        let sine = (tick as f32 / 30.0).cos();
+        let start_x =
+            ((sine + 1.0) * (screen_width as f32 / 2.1)).clamp(0.0, screen_width as f32) as usize;
+        let start_y =
+            ((sine + 1.0) * (screen_height as f32 / 2.1)).clamp(0.0, screen_height as f32) as usize;
+        println!("Frame {tick}, x: {start_x}, y: {start_y}");
 
+        buf.fill(yellow);
+
+        for x in 0..screen_width {
+            buf[x + start_y * screen_width] = blue;
+        }
         for row in buf.chunks_mut(screen_width) {
-            row[0..start].fill(yellow);
-            for col_idx in 1..=(screen_width / col_width) {
-                let color = if col_idx % 2 == 0 { yellow } else { blue };
-                row[col_idx * start..(col_idx + 1) * start].fill(color);
-            }
+            row[start_x] = blue;
         }
     }
 
