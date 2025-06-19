@@ -2,7 +2,7 @@
 
 #[cfg(kms_platform)]
 mod imple {
-    use drm::control::{connector, Device as CtrlDevice, Event, ModeTypeFlags, PlaneType};
+    use drm::control::{connector, Device as CtrlDevice, ModeTypeFlags, PlaneType};
     use drm::Device;
 
     use raw_window_handle::{DisplayHandle, DrmDisplayHandle, DrmWindowHandle, WindowHandle};
@@ -11,7 +11,7 @@ mod imple {
     use std::num::NonZeroU32;
     use std::os::unix::io::{AsFd, AsRawFd, BorrowedFd};
     use std::path::Path;
-    use std::time::{Duration, Instant};
+    use std::time::Instant;
 
     pub(super) fn entry() -> Result<(), Box<dyn std::error::Error>> {
         // Open a new device.
@@ -109,45 +109,21 @@ mod imple {
         )?;
 
         // Start drawing to it.
-        let start = Instant::now();
+        let mut last_frame = Instant::now();
         let mut tick = 0;
-        while Instant::now().duration_since(start) < Duration::from_secs(2) {
+        loop {
             tick += 1;
-            println!("Drawing tick {tick}");
+            println!(
+                "Drawing tick {tick}, {:?} elapsed since last frame",
+                last_frame.elapsed()
+            );
+            last_frame = Instant::now();
 
             // Start drawing.
             let mut buffer = surface.buffer_mut()?;
             draw_to_buffer(&mut buffer, tick);
             buffer.present()?;
-
-            // Wait for the page flip to happen.
-            rustix::event::poll(
-                &mut [rustix::event::PollFd::new(
-                    &device,
-                    rustix::event::PollFlags::IN,
-                )],
-                None,
-            )?;
-
-            // Receive the events.
-            let events = device.receive_events()?;
-            println!("Got some events...");
-            for event in events {
-                match event {
-                    Event::PageFlip(_) => {
-                        println!("Page flip event.");
-                    }
-                    Event::Vblank(_) => {
-                        println!("Vblank event.");
-                    }
-                    _ => {
-                        println!("Unknown event.");
-                    }
-                }
-            }
         }
-
-        Ok(())
     }
 
     fn draw_to_buffer(buf: &mut [u32], tick: usize) {
